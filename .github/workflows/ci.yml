@@ -1,19 +1,31 @@
 name: CI
 on:
-  push: { branches: [main] }
+  push:
+    branches: [main]
   pull_request:
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
-    defaults: { run: { working-directory: app } }
+    defaults:
+      run:
+        working-directory: app
     steps:
       - uses: actions/checkout@v4
+
+      # Install Node & cache pnpm deps
       - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'pnpm' }
-      - run: corepack enable
-      - run: corepack prepare pnpm@latest --activate
-      - run: pnpm i
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      # <<< ensure pnpm is on PATH
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9 # or "latest"
+
+      - run: pnpm i --frozen-lockfile=false
       - run: pnpm lint
       - run: pnpm test
       - run: pnpm build
@@ -22,16 +34,28 @@ jobs:
     needs: build-test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    permissions: { contents: write }
-    defaults: { run: { working-directory: app } }
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: app
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: 'pnpm' }
-      - run: corepack enable
-      - run: corepack prepare pnpm@latest --activate
-      - run: pnpm i && pnpm build
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: app/pnpm-lock.yaml
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9 # or "latest"
+
+      - run: pnpm i --frozen-lockfile=false && pnpm build
+
       - uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
           folder: app/dist
+
